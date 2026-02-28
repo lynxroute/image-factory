@@ -56,7 +56,7 @@ source "amazon-ebs" "nginx" {
   }
  
   ami_name        = local.ami_name
-  ami_description = "Nginx ${var.nginx_version} on Ubuntu 22.04 LTS — built by image-factory"
+  ami_description = "Nginx ${var.nginx_version} on Ubuntu 22.04 LTS"
  
   # Копируем AMI в несколько регионов (раскомментируй если нужно)
   # ami_regions = ["eu-west-1", "ap-southeast-1"]
