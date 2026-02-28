@@ -1,0 +1,164 @@
+# =============================================================
+# Ansible playbook: установка и настройка Nginx
+# =============================================================
+ 
+---
+- name: Install and configure Nginx
+  hosts: default
+  become: true
+ 
+  vars:
+    nginx_ver: "{{ nginx_version | default('1.26') }}"
+ 
+  tasks:
+    # ── Подготовка системы ───────────────────────────────────
+    - name: Update apt cache
+      apt:
+        update_cache: true
+        cache_valid_time: 3600
+ 
+    - name: Install prerequisites
+      apt:
+        name:
+          - curl
+          - gnupg2
+          - ca-certificates
+          - lsb-release
+          - apt-transport-https
+        state: present
+ 
+    # ── Установка Nginx из официального репо ─────────────────
+    - name: Add Nginx signing key
+      apt_key:
+        url: https://nginx.org/keys/nginx_signing.key
+        state: present
+ 
+    - name: Add Nginx stable repository
+      apt_repository:
+        repo: "deb http://nginx.org/packages/ubuntu {{ ansible_distribution_release }} nginx"
+        state: present
+        filename: nginx
+ 
+    - name: Install Nginx {{ nginx_ver }}
+      apt:
+        name: nginx
+        state: present
+        update_cache: true
+ 
+    # ── Конфигурация ─────────────────────────────────────────
+    - name: Deploy nginx.conf
+      template:
+        src: ../templates/nginx.conf.j2
+        dest: /etc/nginx/nginx.conf
+        owner: root
+        group: root
+        mode: "0644"
+        validate: "nginx -t -c %s"
+      notify: reload nginx
+ 
+    - name: Remove default site
+      file:
+        path: /etc/nginx/conf.d/default.conf
+        state: absent
+      notify: reload nginx
+ 
+    - name: Deploy default vhost
+      copy:
+        dest: /etc/nginx/conf.d/default.conf
+        content: |
+          server {
+              listen 80 default_server;
+              server_name _;
+ 
+              root /var/www/html;
+              index index.html;
+ 
+              # Health check endpoint
+              location /health {
+                  access_log off;
+                  return 200 "OK\n";
+                  add_header Content-Type text/plain;
+              }
+ 
+              location / {
+                  try_files $uri $uri/ =404;
+              }
+          }
+        owner: root
+        group: root
+        mode: "0644"
+      notify: reload nginx
+ 
+    - name: Create web root
+      file:
+        path: /var/www/html
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: "0755"
+ 
+    - name: Deploy default index.html
+      copy:
+        dest: /var/www/html/index.html
+        content: |
+          <!DOCTYPE html>
+          <html>
+          <head><title>Nginx AMI</title></head>
+          <body>
+            <h1>Nginx {{ nginx_ver }} — ready</h1>
+            <p>Built by image-factory</p>
+          </body>
+          </html>
+        owner: www-data
+        group: www-data
+ 
+    # ── Hardening ─────────────────────────────────────────────
+    - name: Hide Nginx version in headers
+      lineinfile:
+        path: /etc/nginx/nginx.conf
+        regexp: "server_tokens"
+        line: "    server_tokens off;"
+        insertafter: "http {"
+ 
+    - name: UFW — allow HTTP and HTTPS
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop: ["80", "443"]
+ 
+    - name: UFW — allow SSH
+      ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+ 
+    - name: Enable UFW
+      ufw:
+        state: enabled
+        policy: deny
+        direction: incoming
+ 
+    # ── Запуск сервиса ────────────────────────────────────────
+    - name: Enable and start Nginx
+      systemd:
+        name: nginx
+        enabled: true
+        state: started
+ 
+    # ── Вывод версии ─────────────────────────────────────────
+    - name: Print Nginx version
+      command: nginx -v
+      register: nginx_ver_out
+      changed_when: false
+ 
+    - name: Show version
+      debug:
+        msg: "{{ nginx_ver_out.stderr }}"
+ 
+  handlers:
+    - name: reload nginx
+      systemd:
+        name: nginx
+        state: reloaded
+ 
