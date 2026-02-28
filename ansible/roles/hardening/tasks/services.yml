@@ -38,14 +38,19 @@
     line: "{{ item.line }}"
     state: present
   loop:
-    - { regexp: "^#?PermitRootLogin",      line: "PermitRootLogin no" }
+    - { regexp: "^#?PermitRootLogin",        line: "PermitRootLogin no" }
     - { regexp: "^#?PasswordAuthentication", line: "PasswordAuthentication no" }
-    - { regexp: "^#?X11Forwarding",        line: "X11Forwarding no" }
-    - { regexp: "^#?MaxAuthTries",         line: "MaxAuthTries 3" }
-    - { regexp: "^#?AllowTcpForwarding",   line: "AllowTcpForwarding no" }
-    - { regexp: "^#?ClientAliveInterval",  line: "ClientAliveInterval 300" }
-    - { regexp: "^#?ClientAliveCountMax",  line: "ClientAliveCountMax 2" }
-  notify: restart ssh
+    - { regexp: "^#?X11Forwarding",          line: "X11Forwarding no" }
+    - { regexp: "^#?MaxAuthTries",           line: "MaxAuthTries 3" }
+    - { regexp: "^#?AllowTcpForwarding",     line: "AllowTcpForwarding no" }
+    - { regexp: "^#?ClientAliveInterval",    line: "ClientAliveInterval 300" }
+    - { regexp: "^#?ClientAliveCountMax",    line: "ClientAliveCountMax 2" }
+
+- name: Restart SSH service
+  ansible.builtin.systemd:
+    name: ssh
+    state: restarted
+  become: trued
 
 - name: Install fail2ban
   ansible.builtin.apt:
