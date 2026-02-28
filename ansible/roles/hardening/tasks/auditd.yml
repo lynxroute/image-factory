@@ -1,0 +1,70 @@
+# =============================================================
+# Auditd — логирование системных событий
+# =============================================================
+
+---
+- name: Install auditd
+  ansible.builtin.apt:
+    name:
+      - auditd
+      - audispd-plugins
+    state: present
+    update_cache: true
+
+- name: Deploy audit rules
+  ansible.builtin.copy:
+    dest: /etc/audit/rules.d/hardening.rules
+    mode: "0640"
+    content: |
+      # Удаляем все текущие правила
+      -D
+
+      # Буфер
+      -b 8192
+
+      # Failure mode: 1 = log, 2 = panic
+      -f 1
+
+      # ── Изменения файловой системы ───────────────────────
+      -w /etc/passwd         -p wa -k identity
+      -w /etc/shadow         -p wa -k identity
+      -w /etc/group          -p wa -k identity
+      -w /etc/gshadow        -p wa -k identity
+      -w /etc/sudoers        -p wa -k sudoers
+      -w /etc/sudoers.d/     -p wa -k sudoers
+
+      # ── SSH ──────────────────────────────────────────────
+      -w /etc/ssh/sshd_config -p wa -k sshd_config
+
+      # ── Nginx конфиги ────────────────────────────────────
+      -w /etc/nginx/          -p wa -k nginx_config
+
+      # ── Системные вызовы: выполнение команд ──────────────
+      -a always,exit -F arch=b64 -S execve -k exec
+      -a always,exit -F arch=b32 -S execve -k exec
+
+      # ── Повышение привилегий ─────────────────────────────
+      -a always,exit -F arch=b64 -S setuid -S setgid -k privilege_escalation
+      -a always,exit -F arch=b32 -S setuid -S setgid -k privilege_escalation
+
+      # ── Сетевые соединения ───────────────────────────────
+      -a always,exit -F arch=b64 -S connect -k network_connect
+      -a always,exit -F arch=b32 -S connect -k network_connect
+
+      # ── Загрузка/выгрузка модулей ────────────────────────
+      -w /sbin/insmod  -p x -k modules
+      -w /sbin/rmmod   -p x -k modules
+      -w /sbin/modprobe -p x -k modules
+
+      # Делаем конфиг неизменяемым до перезагрузки
+      -e 2
+
+- name: Enable and start auditd
+  ansible.builtin.systemd:
+    name: auditd
+    enabled: true
+    state: started
+
+- name: Load audit rules
+  ansible.builtin.shell: augenrules --load
+  changed_when: false
