@@ -1,0 +1,60 @@
+# =============================================================
+# Image Factory — манифест продуктов
+# Добавь новый продукт сюда — workflow подхватит автоматически
+# =============================================================
+
+defaults:
+  os: ubuntu2404
+  os_filter: "ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"
+  os_owner: "099720109477"
+  instance_type: t3.micro
+  disk_size: 8
+  regions:
+    - us-east-1
+    - eu-west-1
+    - ap-southeast-1
+
+products:
+  - name: nginx
+    description: "Nginx web server"
+    playbook: ansible/playbooks/nginx.yml
+    instance_type: t3.micro
+    versions:
+      - "latest"
+      - "1.26"
+      - "1.24"
+    default_version: "latest"
+    ports: [80, 443]
+
+  # Будущие продукты — раскомментируй когда будешь добавлять:
+
+  # - name: postgresql
+  #   description: "PostgreSQL database server"
+  #   playbook: ansible/playbooks/postgresql.yml
+  #   instance_type: t3.small
+  #   versions:
+  #     - "latest"
+  #     - "16"
+  #     - "15"
+  #   default_version: "latest"
+  #   ports: [5432]
+
+  # - name: redis
+  #   description: "Redis in-memory data store"
+  #   playbook: ansible/playbooks/redis.yml
+  #   instance_type: t3.micro
+  #   versions:
+  #     - "latest"
+  #     - "7"
+  #   default_version: "latest"
+  #   ports: [6379]
+
+  # - name: elasticsearch
+  #   description: "Elasticsearch search engine"
+  #   playbook: ansible/playbooks/elasticsearch.yml
+  #   instance_type: t3.medium
+  #   versions:
+  #     - "latest"
+  #     - "8"
+  #   default_version: "latest"
+  #   ports: [9200, 9300]
