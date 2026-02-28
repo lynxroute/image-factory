@@ -1,6 +1,6 @@
 # =============================================================
 # Packer шаблон: Nginx AMI для AWS
-# Ubuntu 22.04 LTS + Nginx последней стабильной версии
+# Ubuntu 24.04 LTS + Nginx последней стабильной версии
 # =============================================================
  
 packer {
@@ -21,7 +21,12 @@ packer {
 variable "aws_region" {
   default = "us-east-1"
 }
- 
+
+variable "os_version" {
+  default = "ubuntu2404"
+  description = "OS версия для имени AMI"
+} 
+
 variable "nginx_version" {
   default = "1.26"
   description = "Nginx minor version (1.24 или 1.26)"
@@ -35,7 +40,7 @@ variable "build_env" {
 # ── Локальные значения ───────────────────────────────────────
 locals {
   timestamp  = formatdate("YYYYMMDD-hhmm", timestamp())
-  ami_name   = "nginx-${var.nginx_version}-ubuntu2204-${local.timestamp}"
+  ami_name  = "nginx-${var.nginx_version}-${var.os_version}-${local.timestamp}"
 }
  
 # ── Source: AWS EBS ──────────────────────────────────────────
@@ -66,7 +71,7 @@ source_ami_filter {
     Name        = local.ami_name
     Software    = "nginx"
     Version     = var.nginx_version
-    BaseOS      = "ubuntu-24.04"
+    BaseOS      = var.os_version
     BuildDate   = local.timestamp
     BuildEnv    = var.build_env
     ManagedBy   = "image-factory"
