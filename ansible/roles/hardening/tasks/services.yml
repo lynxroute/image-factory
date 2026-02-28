@@ -50,7 +50,7 @@
   ansible.builtin.systemd:
     name: ssh
     state: restarted
-  become: trued
+  become: true
 
 - name: Install fail2ban
   ansible.builtin.apt:
