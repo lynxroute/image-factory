@@ -15,7 +15,7 @@ defaults:
     - ap-southeast-1
 
 products:
-  - name: nginx
+  - name: nginx-lts
     description: "Nginx web server"
     playbook: ansible/playbooks/nginx.yml
     instance_type: t3.micro
@@ -25,7 +25,16 @@ products:
       - "1.24"
     default_version: "latest"
     ports: [80, 443]
-
+    
+- name: nginx-mainline
+    description: "Nginx mainline (latest features)"
+    playbook: ansible/playbooks/nginx.yml
+    instance_type: t3.micro
+    versions:
+      - "latest"
+      - "1.27"
+    default_version: "latest"
+    ports: [80, 443]
   # Будущие продукты — раскомментируй когда будешь добавлять:
 
   # - name: postgresql
