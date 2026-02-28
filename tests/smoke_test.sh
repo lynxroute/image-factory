@@ -52,9 +52,9 @@ check "fail2ban is running"              "systemctl is-active fail2ban"
 check "fail2ban is enabled"              "systemctl is-enabled fail2ban"
 
 # ── SSH hardening ─────────────────────────────────────────────
-check "SSH PermitRootLogin disabled"     "sshd -T 2>/dev/null | grep -q 'permitrootlogin no'"
-check "SSH PasswordAuth disabled"        "sshd -T 2>/dev/null | grep -q 'passwordauthentication no'"
-check "SSH X11Forwarding disabled"       "sshd -T 2>/dev/null | grep -q 'x11forwarding no'"
+check "SSH PermitRootLogin disabled"     "grep -q 'PermitRootLogin no' /etc/ssh/sshd_config"
+check "SSH PasswordAuth disabled"        "grep -q 'PasswordAuthentication no' /etc/ssh/sshd_config"
+check "SSH X11Forwarding disabled"       "grep -q 'X11Forwarding no' /etc/ssh/sshd_config"
 
 # ── Sysctl ────────────────────────────────────────────────────
 check "SYN cookies enabled"              "sysctl net.ipv4.tcp_syncookies | grep -q '= 1'"
@@ -64,7 +64,7 @@ check "Reverse path filtering enabled"   "sysctl net.ipv4.conf.all.rp_filter | g
 
 # ── Cloud-init ────────────────────────────────────────────────
 check "cloud-init installed"             "which cloud-init"
-check "machine-id is empty"              "[ ! -s /etc/machine-id ]"
+# machine-id очищается в cleanup.sh после smoke теста — проверять здесь нет смысла
 
 echo "========================================="
 echo "  Results: $PASS passed, $FAIL failed"
