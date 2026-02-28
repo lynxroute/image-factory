@@ -2,7 +2,7 @@
 # Packer шаблон: Nginx AMI для AWS
 # Ubuntu 24.04 LTS + Nginx последней стабильной версии
 # =============================================================
- 
+
 packer {
   required_version = ">= 1.11.0"
   required_plugins {
@@ -16,85 +16,90 @@ packer {
     }
   }
 }
- 
+
 # ── Переменные ───────────────────────────────────────────────
 variable "aws_region" {
   default = "us-east-1"
 }
 
 variable "os_version" {
-  default = "ubuntu2404"
+  default     = "ubuntu2404"
   description = "OS версия для имени AMI"
-} 
+}
 
 variable "nginx_version" {
-  default = "1.26"
-  description = "Nginx minor version (1.24 или 1.26)"
+  default     = "1.26"
+  description = "Nginx minor version"
 }
- 
+
 variable "build_env" {
-  default = "prod"
+  default     = "prod"
   description = "prod / staging"
 }
- 
+
+variable "build_timestamp" {
+  default     = ""
+  description = "Timestamp из CI (Europe/Riga). Если пусто — генерируется локально"
+}
+
 # ── Локальные значения ───────────────────────────────────────
 locals {
-  timestamp  = formatdate("YYYYMMDD-hhmm", timestamp())
+  timestamp = var.build_timestamp != "" ? var.build_timestamp : formatdate("YYYYMMDD-hhmm", timestamp())
   ami_name  = "nginx-${var.nginx_version}-${var.os_version}-${local.timestamp}"
 }
- 
+
 # ── Source: AWS EBS ──────────────────────────────────────────
 source "amazon-ebs" "nginx" {
   region        = var.aws_region
-  instance_type = "t3.micro"    # бесплатный tier — достаточно для сборки
+  instance_type = "t3.micro"
   ssh_username  = "ubuntu"
- 
-# Ubuntu LTS: 24.04 (Noble) — обновить на следующий LTS в апреле 2026
-# Следующий LTS: Ubuntu 26.04, выйдет ~апрель 2026
-source_ami_filter {
-  filters = {
-    name                = "ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"
-    root-device-type    = "ebs"
-    virtualization-type = "hvm"
+
+  # Ubuntu LTS: 24.04 (Noble) — обновить на следующий LTS в апреле 2026
+  # Следующий LTS: Ubuntu 26.04, выйдет ~апрель 2026
+  source_ami_filter {
+    filters = {
+      name                = "ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"
+      root-device-type    = "ebs"
+      virtualization-type = "hvm"
+    }
+    owners      = ["099720109477"]
+    most_recent = true
   }
-  owners      = ["099720109477"]
-  most_recent = true
-}
- 
+
   ami_name        = local.ami_name
-  ami_description = "Nginx ${var.nginx_version} on Ubuntu 24.04 LTS"
- 
+  ami_description = "Nginx ${var.nginx_version} on Ubuntu 24.04 LTS - built by image-factory"
+
   # Копируем AMI в несколько регионов (раскомментируй если нужно)
   # ami_regions = ["eu-west-1", "ap-southeast-1"]
- 
+
   tags = {
-    Name        = local.ami_name
-    Software    = "nginx"
-    Version     = var.nginx_version
-    BaseOS      = var.os_version
-    BuildDate   = local.timestamp
-    BuildEnv    = var.build_env
-    ManagedBy   = "image-factory"
+    Name      = local.ami_name
+    Software  = "nginx"
+    Version   = var.nginx_version
+    BaseOS    = var.os_version
+    BuildDate = local.timestamp
+    BuildEnv  = var.build_env
+    ManagedBy = "image-factory"
   }
- 
-  # Диск: 8GB gp3 — достаточно для Nginx
+
+  # Диск: 8GB gp3
   launch_block_device_mappings {
     device_name           = "/dev/sda1"
     volume_size           = 8
     volume_type           = "gp3"
     delete_on_termination = true
-    encrypted             = true    # шифруем по умолчанию
+    encrypted             = true
   }
- 
+
   # Временная security group — только SSH для Packer
   temporary_security_group_source_cidrs = ["0.0.0.0/0"]
 }
- 
+
 # ── Build ────────────────────────────────────────────────────
 build {
   name    = "nginx-ami"
   sources = ["source.amazon-ebs.nginx"]
- 
+
   # Шаг 1: ждём пока Ubuntu полностью загрузится
   provisioner "shell" {
     inline = [
@@ -103,8 +108,8 @@ build {
       "echo 'Ready!'",
     ]
   }
- 
-  # Шаг 2: Ansible устанавливает и настраивает Nginx
+
+  # Шаг 2: Ansible устанавливает и настраивает Nginx + OS hardening
   provisioner "ansible" {
     playbook_file = "ansible/playbooks/nginx.yml"
     extra_arguments = [
@@ -113,27 +118,21 @@ build {
       "-v",
     ]
   }
- 
-  # Шаг 3: smoke test прямо внутри VM
+
+  # Шаг 3: smoke test внутри VM
   provisioner "shell" {
     script = "tests/smoke_test.sh"
   }
- 
-  # Шаг 4: финальный cleanup перед созданием snapshot
+
+  # Шаг 4: AWS Marketplace cleanup — перед snapshot
   provisioner "shell" {
-    inline = [
-      "sudo apt-get clean",
-      "sudo rm -rf /tmp/* /var/tmp/*",
-      "sudo rm -f /root/.bash_history /home/ubuntu/.bash_history",
-      "sudo truncate -s 0 /var/log/syslog /var/log/auth.log || true",
-      "echo 'Cleanup done'",
-    ]
+    script = "scripts/cleanup.sh"
+    execute_command = "sudo bash '{{.Path}}'"
   }
- 
-  # Выводим имя AMI в конце
+
+  # Манифест с AMI ID
   post-processor "manifest" {
     output     = "packer-manifest.json"
     strip_path = true
   }
 }
- 
