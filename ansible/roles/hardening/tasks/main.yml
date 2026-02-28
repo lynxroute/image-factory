@@ -3,6 +3,11 @@
 # =============================================================
 
 ---
-- import_tasks: sysctl.yml
-- import_tasks: services.yml
-- import_tasks: auditd.yml
+- name: Sysctl hardening
+  include_tasks: "{{ role_path }}/tasks/sysctl.yml"
+
+- name: Services hardening
+  include_tasks: "{{ role_path }}/tasks/services.yml"
+
+- name: Auditd setup
+  include_tasks: "{{ role_path }}/tasks/auditd.yml"
