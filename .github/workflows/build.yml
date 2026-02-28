@@ -1,0 +1,190 @@
+# =============================================================
+# GitHub Actions: универсальная сборка AMI
+# Запуск: вручную с выбором продукта, версии и региона
+# =============================================================
+
+name: Build AMI
+
+on:
+  workflow_dispatch:
+    inputs:
+      product:
+        description: "Продукт"
+        required: true
+        default: "nginx"
+        type: choice
+        options:
+          - nginx
+          - nginx-mainline
+      version:
+        description: "Версия (latest = автоопределение)"
+        required: true
+        default: "latest"
+        type: choice
+        options:
+          - "latest"
+          - "1.28"
+          - "1.26"
+          - "1.24"
+      aws_region:
+        description: "AWS регион"
+        required: true
+        default: "us-east-1"
+        type: choice
+        options:
+          - us-east-1
+          - eu-west-1
+          - ap-southeast-1
+      build_env:
+        description: "Окружение"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - prod
+      dry_run:
+        description: "Dry run (только validate, без сборки)"
+        type: boolean
+        default: false
+
+env:
+  PACKER_VERSION: "1.11.0"
+
+jobs:
+  build:
+    name: "${{ inputs.product }} ${{ inputs.version }} -> ${{ inputs.aws_region }} [${{ inputs.build_env }}]"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Читаем манифест ──────────────────────────────────
+      - name: Read manifest
+        id: manifest
+        run: |
+          PLAYBOOK=$(python3 -c "
+          import yaml, sys
+          m = yaml.safe_load(open('manifest.yaml'))
+          product = next((p for p in m['products'] if p['name'] == '${{ inputs.product }}'), None)
+          if not product:
+              print('ERROR: product not found', file=sys.stderr)
+              sys.exit(1)
+          print(product.get('playbook', 'ansible/playbooks/' + product['name'] + '.yml'))
+          ")
+          INSTANCE_TYPE=$(python3 -c "
+          import yaml
+          m = yaml.safe_load(open('manifest.yaml'))
+          product = next((p for p in m['products'] if p['name'] == '${{ inputs.product }}'), None)
+          print(product.get('instance_type', m['defaults']['instance_type']))
+          ")
+          echo "playbook=$PLAYBOOK" >> $GITHUB_OUTPUT
+          echo "instance_type=$INSTANCE_TYPE" >> $GITHUB_OUTPUT
+
+      # ── Резолвим версию ──────────────────────────────────
+      - name: Resolve version
+        id: version
+        run: |
+          if [ "${{ inputs.version }}" = "latest" ]; then
+            if [ "${{ inputs.product }}" = "nginx-mainline" ]; then
+              # Mainline — нечётный minor
+              RESOLVED=$(curl -s https://nginx.org/en/download.html \
+                | grep -oP 'nginx-\K[0-9]+\.[0-9]+\.[0-9]+(?=\.tar\.gz)' \
+                | awk -F. '$2 % 2 != 0' \
+                | sort -V | tail -1)
+            else
+              # Stable — чётный minor
+              RESOLVED=$(curl -s https://nginx.org/en/download.html \
+                | grep -oP 'nginx-\K[0-9]+\.[0-9]+\.[0-9]+(?=\.tar\.gz)' \
+                | awk -F. '$2 % 2 == 0' \
+                | sort -V | tail -1)
+            fi
+            echo "Resolved version: $RESOLVED"
+          else
+            RESOLVED="${{ inputs.version }}"
+          fi
+          echo "version=$RESOLVED" >> $GITHUB_OUTPUT
+
+      # ── Timestamp CET (Riga) ─────────────────────────────
+      - name: Generate timestamp
+        id: ts
+        run: echo "value=$(TZ=Europe/Riga date +'%Y%m%d-%H%M')" >> $GITHUB_OUTPUT
+
+      # ── AWS credentials ──────────────────────────────────
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ inputs.aws_region }}
+
+      # ── Установка инструментов ───────────────────────────
+      - name: Setup Packer
+        uses: hashicorp/setup-packer@main
+        with:
+          version: ${{ env.PACKER_VERSION }}
+
+      - name: Install Ansible
+        run: |
+          pip install ansible==10.3.0
+          ansible --version
+
+      # ── Packer init ──────────────────────────────────────
+      - name: Packer init
+        run: packer init packer/nginx.pkr.hcl
+
+      # ── Packer validate ──────────────────────────────────
+      - name: Packer validate
+        run: |
+          packer validate \
+            -var "nginx_version=${{ steps.version.outputs.version }}" \
+            -var "aws_region=${{ inputs.aws_region }}" \
+            -var "build_env=${{ inputs.build_env }}" \
+            -var "build_timestamp=${{ steps.ts.outputs.value }}" \
+            packer/nginx.pkr.hcl
+
+      # ── Packer build ─────────────────────────────────────
+      - name: Packer build
+        if: ${{ inputs.dry_run == false }}
+        id: build
+        run: |
+          packer build \
+            -var "nginx_version=${{ steps.version.outputs.version }}" \
+            -var "aws_region=${{ inputs.aws_region }}" \
+            -var "build_env=${{ inputs.build_env }}" \
+            -var "build_timestamp=${{ steps.ts.outputs.value }}" \
+            packer/nginx.pkr.hcl 2>&1 | tee build.log
+
+          AMI_ID=$(jq -r '.builds[-1].artifact_id' packer-manifest.json | cut -d: -f2)
+          echo "ami_id=$AMI_ID" >> $GITHUB_OUTPUT
+          echo "## AMI Built" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Product | ${{ inputs.product }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| AMI ID | \`$AMI_ID\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Region | ${{ inputs.aws_region }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Version | ${{ steps.version.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Env | ${{ inputs.build_env }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Dry run summary
+        if: ${{ inputs.dry_run == true }}
+        run: |
+          echo "## Dry Run - только валидация" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Product | ${{ inputs.product }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Version | ${{ steps.version.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "Сборка не запускалась. Packer validate прошёл успешно." >> $GITHUB_STEP_SUMMARY
+
+      # ── Артефакты ────────────────────────────────────────
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: "${{ inputs.product }}-${{ steps.version.outputs.version }}-${{ inputs.aws_region }}-log"
+          path: |
+            build.log
+            packer-manifest.json
+          if-no-files-found: ignore
+          retention-days: 30
