@@ -9,7 +9,8 @@
   become: true
 
   vars:
-    nginx_ver: "{{ nginx_version | default('1.26') }}"
+    ansible_python_interpreter: /usr/bin/python3
+    nginx_ver: "{{ nginx_version }}"
 
   tasks:
     # ── Подготовка системы ───────────────────────────────────
