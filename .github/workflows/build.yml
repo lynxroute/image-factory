@@ -11,10 +11,10 @@ on:
       product:
         description: "Продукт"
         required: true
-        default: "nginx"
+        default: "nginx-lts"
         type: choice
         options:
-          - nginx
+          - nginx-lts
           - nginx-mainline
       version:
         description: "Версия (latest = автоопределение)"
