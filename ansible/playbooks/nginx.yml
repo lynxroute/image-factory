@@ -167,7 +167,7 @@
         name: nginx
         state: reloaded
 
-    - name: restart ssh
+    - name: restart sshd
       systemd:
         name: sshd
         state: restarted
