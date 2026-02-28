@@ -44,19 +44,20 @@ source "amazon-ebs" "nginx" {
   instance_type = "t3.micro"    # бесплатный tier — достаточно для сборки
   ssh_username  = "ubuntu"
  
-  # Берём последний официальный Ubuntu 22.04 LTS от Canonical
-  source_ami_filter {
-    filters = {
-      name                = "ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"
-      root-device-type    = "ebs"
-      virtualization-type = "hvm"
-    }
-    owners      = ["099720109477"]  # Canonical официальный ID
-    most_recent = true
+# Ubuntu LTS: 24.04 (Noble) — обновить на следующий LTS в апреле 2026
+# Следующий LTS: Ubuntu 26.04, выйдет ~апрель 2026
+source_ami_filter {
+  filters = {
+    name                = "ubuntu/images/hvm-ssd/ubuntu-noble-24.04-amd64-server-*"
+    root-device-type    = "ebs"
+    virtualization-type = "hvm"
   }
+  owners      = ["099720109477"]
+  most_recent = true
+}
  
   ami_name        = local.ami_name
-  ami_description = "Nginx ${var.nginx_version} on Ubuntu 22.04 LTS"
+  ami_description = "Nginx ${var.nginx_version} on Ubuntu 24.04 LTS"
  
   # Копируем AMI в несколько регионов (раскомментируй если нужно)
   # ami_regions = ["eu-west-1", "ap-southeast-1"]
@@ -65,7 +66,7 @@ source "amazon-ebs" "nginx" {
     Name        = local.ami_name
     Software    = "nginx"
     Version     = var.nginx_version
-    BaseOS      = "ubuntu-22.04"
+    BaseOS      = "ubuntu-24.04"
     BuildDate   = local.timestamp
     BuildEnv    = var.build_env
     ManagedBy   = "image-factory"
