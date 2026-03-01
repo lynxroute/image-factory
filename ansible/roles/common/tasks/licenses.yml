@@ -1,0 +1,36 @@
+# =============================================================
+# Licenses — документация для AWS Marketplace
+# =============================================================
+
+---
+- name: Create Lynxroute doc directory
+  ansible.builtin.file:
+    path: /usr/share/doc/lynxroute
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy LICENSES.txt
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/LICENSES.j2"
+    dest: /usr/share/doc/lynxroute/LICENSES.txt
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Deploy NOTICE.txt
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/NOTICE.j2"
+    dest: /usr/share/doc/lynxroute/NOTICE.txt
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Deploy README.txt
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/README.j2"
+    dest: /usr/share/doc/lynxroute/README.txt
+    owner: root
+    group: root
+    mode: "0644"
