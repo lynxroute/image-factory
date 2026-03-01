@@ -1,0 +1,8 @@
+# =============================================================
+# Nginx role — точка входа
+# =============================================================
+
+---
+- include_tasks: "{{ role_path }}/tasks/logrotate.yml"
+- include_tasks: "{{ role_path }}/tasks/motd.yml"
+- include_tasks: "{{ role_path }}/tasks/cloudwatch.yml"
