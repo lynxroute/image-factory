@@ -1,0 +1,48 @@
+# =============================================================
+# MOTD — приветственное сообщение при SSH входе
+# =============================================================
+
+---
+- name: Disable default Ubuntu MOTD parts
+  ansible.builtin.file:
+    path: "{{ item }}"
+    mode: "0644"
+    state: touch
+  loop:
+    - /etc/motd
+  changed_when: false
+
+- name: Disable Ubuntu dynamic MOTD scripts
+  ansible.builtin.file:
+    path: "{{ item }}"
+    mode: "0644"
+  loop:
+    - /etc/update-motd.d/10-help-text
+    - /etc/update-motd.d/50-motd-news
+    - /etc/update-motd.d/80-esm
+    - /etc/update-motd.d/91-release-upgrade
+  ignore_errors: true
+
+- name: Deploy custom MOTD
+  ansible.builtin.copy:
+    dest: /etc/update-motd.d/01-lynxroute
+    mode: "0755"
+    content: |
+      #!/bin/bash
+      echo ""
+      echo "  ██╗  ██╗   ██╗███╗   ██╗██╗  ██╗██████╗  ██████╗ ██╗   ██╗████████╗███████╗"
+      echo "  ██║  ╚██╗ ██╔╝████╗  ██║╚██╗██╔╝██╔══██╗██╔═══██╗██║   ██║╚══██╔══╝██╔════╝"
+      echo "  ██║   ╚████╔╝ ██╔██╗ ██║ ╚███╔╝ ██████╔╝██║   ██║██║   ██║   ██║   █████╗  "
+      echo "  ██║    ╚██╔╝  ██║╚██╗██║ ██╔██╗ ██╔══██╗██║   ██║██║   ██║   ██║   ██╔══╝  "
+      echo "  ███████╗██║   ██║ ╚████║██╔╝ ██╗██║  ██║╚██████╔╝╚██████╔╝   ██║   ███████╗"
+      echo "  ╚══════╝╚═╝   ╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝  ╚═════╝   ╚═╝   ╚══════╝"
+      echo ""
+      echo "  Product : Nginx {{ nginx_ver }} on Ubuntu 24.04 LTS"
+      echo "  Built by: Lynxroute (https://lynxroute.com)"
+      echo ""
+      echo "  Nginx status : $(systemctl is-active nginx)"
+      echo "  Nginx config : $(sudo nginx -t 2>&1 | tail -1)"
+      echo ""
+      echo "  Docs: https://nginx.org/en/docs/"
+      echo "  Support: https://lynxroute.com/support"
+      echo ""
