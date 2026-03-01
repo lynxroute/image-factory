@@ -1,0 +1,53 @@
+================================================================================
+{{ product_name | upper }} AMI by Lynxroute
+Version: {{ product_version }}
+OS: Ubuntu 24.04 LTS
+================================================================================
+
+DESCRIPTION
+-----------
+{{ product_description }}
+
+QUICK START
+-----------
+1. Launch an EC2 instance from this AMI
+2. Connect via SSH:
+   ssh -i your-key.pem ubuntu@<PUBLIC_IP>
+
+3. Check service status:
+   systemctl status {{ product_name }}
+
+INCLUDED SOFTWARE
+-----------------
+  - {{ product_name | title }} {{ product_version }} ({{ product_license }})
+  - Ubuntu 24.04 LTS
+  - fail2ban
+  - auditd
+  - Amazon CloudWatch Agent
+  - UFW Firewall
+
+SECURITY
+--------
+  - Root login disabled
+  - Password authentication disabled
+  - UFW firewall active (ports 22, 80, 443)
+  - fail2ban active (SSH protection)
+  - auditd active (system auditing)
+
+LOGS
+----
+  - Nginx access: /var/log/nginx/access.log
+  - Nginx error:  /var/log/nginx/error.log
+  - Audit log:    /var/log/audit/audit.log
+
+SUPPORT
+-------
+  https://lynxroute.com/support
+
+LICENSE
+-------
+  See /usr/share/doc/lynxroute/LICENSES.txt
+
+================================================================================
+Built by Lynxroute — https://lynxroute.com
+================================================================================
