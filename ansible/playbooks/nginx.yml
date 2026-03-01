@@ -10,8 +10,17 @@
   vars:
     ansible_python_interpreter: /usr/bin/python3
     nginx_ver: "{{ nginx_version }}"
+    product_name: "nginx"
+    product_version: "{{ nginx_version }}"
+    product_description: "Nginx web server — high performance, hardened and optimized"
+    product_vendor: "{{ vendor | default('Nginx, Inc.') }}"
+    product_license: "{{ license | default('BSD-2-Clause') }}"
+    product_license_url: "{{ license_url | default('https://nginx.org/LICENSE') }}"
+    product_license_text: "{{ license_text | default('') }}"
+    product_url: "{{ url | default('https://nginx.org') }}"
 
   roles:
+    - common
     - hardening
     - nginx
 
