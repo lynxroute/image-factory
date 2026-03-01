@@ -79,8 +79,36 @@ jobs:
           product = next((p for p in m['products'] if p['name'] == '${{ inputs.product }}'), None)
           print(product.get('instance_type', m['defaults']['instance_type']))
           ")
+          LICENSE=$(python3 -c "
+          import yaml
+          m = yaml.safe_load(open('manifest.yaml'))
+          product = next((p for p in m['products'] if p['name'] == '${{ inputs.product }}'), None)
+          print(product.get('license', ''))
+          ")
+          LICENSE_URL=$(python3 -c "
+          import yaml
+          m = yaml.safe_load(open('manifest.yaml'))
+          product = next((p for p in m['products'] if p['name'] == '${{ inputs.product }}'), None)
+          print(product.get('license_url', ''))
+          ")
+          VENDOR=$(python3 -c "
+          import yaml
+          m = yaml.safe_load(open('manifest.yaml'))
+          product = next((p for p in m['products'] if p['name'] == '${{ inputs.product }}'), None)
+          print(product.get('vendor', ''))
+          ")
+          URL=$(python3 -c "
+          import yaml
+          m = yaml.safe_load(open('manifest.yaml'))
+          product = next((p for p in m['products'] if p['name'] == '${{ inputs.product }}'), None)
+          print(product.get('url', ''))
+          ")
           echo "playbook=$PLAYBOOK" >> $GITHUB_OUTPUT
           echo "instance_type=$INSTANCE_TYPE" >> $GITHUB_OUTPUT
+          echo "license=$LICENSE" >> $GITHUB_OUTPUT
+          echo "license_url=$LICENSE_URL" >> $GITHUB_OUTPUT
+          echo "vendor=$VENDOR" >> $GITHUB_OUTPUT
+          echo "url=$URL" >> $GITHUB_OUTPUT
 
       # ── Резолвим версию ──────────────────────────────────
       - name: Resolve version
