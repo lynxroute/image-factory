@@ -183,8 +183,6 @@ jobs:
             -var "build_env=${{ inputs.build_env }}" \
             -var "build_timestamp=${{ steps.ts.outputs.value }}" \
             packer/nginx.pkr.hcl 2>&1 | tee build.log
-
-          AMI_ID=$(jq -r '.builds[-1].artifact_id' packer-manifest.json | cut -d: -f2)
           echo "ami_id=$AMI_ID" >> $GITHUB_OUTPUT
           echo "## AMI Built" >> $GITHUB_STEP_SUMMARY
           echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
