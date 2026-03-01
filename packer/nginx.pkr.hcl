@@ -42,6 +42,26 @@ variable "build_timestamp" {
   description = "Timestamp из CI (Europe/Riga). Если пусто — генерируется локально"
 }
 
+variable "vendor" {
+  default     = "Nginx, Inc."
+  description = "Вендор продукта"
+}
+
+variable "license" {
+  default     = "BSD-2-Clause"
+  description = "Лицензия продукта"
+}
+
+variable "license_url" {
+  default     = "https://nginx.org/LICENSE"
+  description = "URL лицензии"
+}
+
+variable "url" {
+  default     = "https://nginx.org"
+  description = "URL продукта"
+}
+
 # ── Локальные значения ───────────────────────────────────────
 locals {
   timestamp = var.build_timestamp != "" ? var.build_timestamp : formatdate("YYYYMMDD-hhmm", timestamp())
@@ -67,10 +87,7 @@ source "amazon-ebs" "nginx" {
   }
 
   ami_name        = local.ami_name
-  ami_description = "Nginx ${var.nginx_version} on Ubuntu 24.04 LTS - built by image-factory"
-
-  # Копируем AMI в несколько регионов (раскомментируй если нужно)
-  # ami_regions = ["eu-west-1", "ap-southeast-1"]
+  ami_description = "Nginx ${var.nginx_version} on Ubuntu 24.04 LTS - built by Lynxroute"
 
   tags = {
     Name      = local.ami_name
@@ -79,7 +96,9 @@ source "amazon-ebs" "nginx" {
     BaseOS    = var.os_version
     BuildDate = local.timestamp
     BuildEnv  = var.build_env
-    ManagedBy = "image-factory"
+    ManagedBy = "Lynxroute"
+    License   = var.license
+    Vendor    = var.vendor
   }
 
   # Диск: 8GB gp3
@@ -115,6 +134,10 @@ build {
     extra_arguments = [
       "--extra-vars", "nginx_version=${var.nginx_version}",
       "--extra-vars", "build_env=${var.build_env}",
+      "--extra-vars", "vendor=${var.vendor}",
+      "--extra-vars", "license=${var.license}",
+      "--extra-vars", "license_url=${var.license_url}",
+      "--extra-vars", "url=${var.url}",
       "-v",
     ]
   }
@@ -126,7 +149,7 @@ build {
 
   # Шаг 4: AWS Marketplace cleanup — перед snapshot
   provisioner "shell" {
-    script = "scripts/cleanup.sh"
+    script          = "scripts/cleanup.sh"
     execute_command = "sudo bash '{{.Path}}'"
   }
 
